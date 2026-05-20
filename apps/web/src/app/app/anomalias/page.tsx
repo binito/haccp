@@ -2,10 +2,10 @@
 
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Camera, X, AlertTriangle, Send, List, Plus } from 'lucide-react';
+import { Camera, X, AlertTriangle, Send, List, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
-import { Area, Anomaly, AnomalyStatus } from '@/types';
+import { Anomaly, AnomalyStatus, HigienizacaoZona, zonaLabel } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -32,17 +32,28 @@ export default function AnomaliaPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  const [form, setForm] = useState({ title: '', description: '', severity: 'MEDIUM', areaId: '' });
+  const [form, setForm] = useState({ title: '', description: '', severity: 'MEDIUM', zona: '' as HigienizacaoZona | '' });
   const queryClient = useQueryClient();
 
-  const { data: areas } = useQuery<Area[]>({
-    queryKey: ['app-areas'],
-    queryFn: () => api.get('/areas').then(r => r.data),
-  });
+  const zonaOptions: { value: HigienizacaoZona; label: string }[] = [
+    { value: 'COZINHA', label: 'Cozinha' },
+    { value: 'PRODUCAO', label: 'Produção' },
+    { value: 'ARMAZEM', label: 'Armazém' },
+    { value: 'SERVICO', label: 'Serviço' },
+  ];
 
   const { data: anomalies, isLoading } = useQuery<Anomaly[]>({
     queryKey: ['app-anomalies'],
-    queryFn: () => api.get('/reports/anomalies').then(r => r.data),
+    queryFn: () => api.get('/reports/anomalies').then(r => r.data.data),
+  });
+
+  const { mutate: deleteAnomaly } = useMutation({
+    mutationFn: (id: string) => api.delete(`/reports/anomalies/${id}`),
+    onSuccess: () => {
+      toast.success('Anomalia eliminada');
+      queryClient.invalidateQueries({ queryKey: ['app-anomalies'] });
+    },
+    onError: () => toast.error('Erro ao eliminar anomalia'),
   });
 
   const { mutate: submit, isPending } = useMutation({
@@ -51,7 +62,7 @@ export default function AnomaliaPage() {
       fd.append('title', form.title);
       fd.append('description', form.description);
       fd.append('severity', form.severity);
-      fd.append('areaId', form.areaId);
+      fd.append('zona', form.zona);
       photos.forEach(p => fd.append('photos', p));
       return api.post('/reports/anomalies', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -59,7 +70,7 @@ export default function AnomaliaPage() {
     },
     onSuccess: () => {
       toast.success('Anomalia reportada!');
-      setForm({ title: '', description: '', severity: 'MEDIUM', areaId: '' });
+      setForm({ title: '', description: '', severity: 'MEDIUM', zona: '' });
       setPhotos([]);
       setPreviews([]);
       queryClient.invalidateQueries({ queryKey: ['app-anomalies'] });
@@ -88,7 +99,7 @@ export default function AnomaliaPage() {
     setPreviews(prev => prev.filter((_, idx) => idx !== i));
   };
 
-  const canSubmit = form.title && form.description && form.areaId;
+  const canSubmit = form.title && form.description && form.zona;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -137,15 +148,29 @@ export default function AnomaliaPage() {
               <div key={a.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-gray-900 text-sm leading-snug">{a.title}</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${statusColor[a.status]}`}>
-                    {statusLabel[a.status]}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${statusColor[a.status]}`}>
+                      {statusLabel[a.status]}
+                    </span>
+                    {a.status === 'RESOLVED' && (
+                      <button
+                        onClick={() => {
+                          if (confirm('Apagar esta anomalia resolvida?')) {
+                            deleteAnomaly(a.id);
+                          }
+                        }}
+                        className="text-red-400 active:text-red-600 p-1"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {a.description && (
                   <p className="text-xs text-gray-500 mt-1 line-clamp-2">{a.description}</p>
                 )}
                 <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                  <span>{a.area?.name ?? a.areaId}</span>
+                  <span>{a.zona ? zonaLabel[a.zona] : '—'}</span>
                   <span>·</span>
                   <span>{severityLabel[a.severity]}</span>
                   <span>·</span>
@@ -160,17 +185,25 @@ export default function AnomaliaPage() {
       {/* Formulário */}
       {tab === 'report' && (
         <div className="p-4 space-y-4">
-          {/* Área */}
+          {/* Zona */}
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Área *</label>
-            <select
-              value={form.areaId}
-              onChange={e => setForm(f => ({ ...f, areaId: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="">Seleccionar área...</option>
-              {areas?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Zona *</label>
+            <div className="grid grid-cols-2 gap-2">
+              {zonaOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, zona: opt.value }))}
+                  className={`py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                    form.zona === opt.value
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-white border-gray-200 text-gray-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Título */}

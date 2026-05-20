@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { User } from '@/types';
-import { getUser, setUser, clearAuth } from '@/lib/auth';
+import { setUser, setAccessToken, clearAuth } from '@/lib/auth';
 import api from '@/lib/api';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   hydrated: boolean;
-  login: (user: User) => void;
+  login: (user: User, accessToken: string) => void;
   logout: () => void;
   hydrate: () => Promise<void>;
 }
@@ -17,8 +17,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   hydrated: false,
 
-  login: (user: User) => {
+  login: (user: User, accessToken: string) => {
     setUser(user);
+    setAccessToken(accessToken);
     set({ user, isAuthenticated: true });
   },
 
@@ -37,16 +38,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   hydrate: async () => {
     if (get().hydrated) return;
-    const cached = getUser();
-    if (!cached) {
-      set({ hydrated: true });
-      return;
-    }
-    set({ user: cached, isAuthenticated: true });
     try {
-      const res = await api.get<User>('/auth/me');
-      setUser(res.data);
-      set({ user: res.data, isAuthenticated: true, hydrated: true });
+      // Tenta renovar a sessão usando o refresh token (HttpOnly cookie).
+      // Se o cookie estiver expirado ou ausente, cai no catch e redireciona para login.
+      const { data } = await api.post<{ access_token: string; user: User }>('/auth/refresh');
+      setUser(data.user);
+      setAccessToken(data.access_token);
+      set({ user: data.user, isAuthenticated: true, hydrated: true });
     } catch {
       clearAuth();
       set({ user: null, isAuthenticated: false, hydrated: true });

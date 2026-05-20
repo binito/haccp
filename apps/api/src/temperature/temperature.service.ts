@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/types/auth-user.type';
@@ -8,26 +10,48 @@ import { RecordTemperatureDto } from './dto/record-temperature.dto';
 
 @Injectable()
 export class TemperatureService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
+  ) {}
+
+  private equipKey(clientId?: string) {
+    return `temp:equipment:${clientId ?? 'all'}`;
+  }
 
   async findAllEquipment(clientId?: string) {
-    return this.prisma.temperatureEquipment.findMany({
+    const key = this.equipKey(clientId);
+    const cached = await this.cache.get(key);
+    if (cached) return cached;
+    const data = await this.prisma.temperatureEquipment.findMany({
       where: { active: true, ...(clientId ? { clientId } : {}) },
       orderBy: { name: 'asc' },
       include: { client: { select: { id: true, name: true } } },
     });
+    await this.cache.set(key, data, 120000);
+    return data;
   }
 
   async createEquipment(dto: CreateEquipmentDto, actor: AuthUser) {
     if (actor.role !== Role.SUPER_ADMIN) dto.clientId = actor.clientId!;
-    return this.prisma.temperatureEquipment.create({ data: dto });
+    const result = await this.prisma.temperatureEquipment.create({ data: dto });
+    await Promise.all([
+      this.cache.del(this.equipKey(dto.clientId)),
+      this.cache.del(this.equipKey()),
+    ]);
+    return result;
   }
 
   async updateEquipment(id: string, data: Partial<CreateEquipmentDto>, actor: AuthUser) {
     const eq = await this.prisma.temperatureEquipment.findUnique({ where: { id }, select: { clientId: true } });
     if (!eq) throw new NotFoundException('Equipamento não encontrado');
     assertOwnership(actor, eq.clientId);
-    return this.prisma.temperatureEquipment.update({ where: { id }, data });
+    const result = await this.prisma.temperatureEquipment.update({ where: { id }, data });
+    await Promise.all([
+      this.cache.del(this.equipKey(eq.clientId)),
+      this.cache.del(this.equipKey()),
+    ]);
+    return result;
   }
 
   async deleteEquipment(id: string, actor: AuthUser) {
@@ -37,6 +61,10 @@ export class TemperatureService {
 
     await this.prisma.temperatureRecord.deleteMany({ where: { equipmentId: id } });
     await this.prisma.temperatureEquipment.delete({ where: { id } });
+    await Promise.all([
+      this.cache.del(this.equipKey(eq.clientId)),
+      this.cache.del(this.equipKey()),
+    ]);
     return { id };
   }
 

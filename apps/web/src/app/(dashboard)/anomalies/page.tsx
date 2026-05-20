@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import api from '@/lib/api';
-import { Anomaly, AnomalyStatus } from '@/types';
+import { Anomaly, AnomalyStatus, zonaLabel } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import toast from 'react-hot-toast';
@@ -32,7 +32,7 @@ export default function AnomaliesPage() {
     queryKey: ['anomalies', statusFilter],
     queryFn: () => {
       const params = statusFilter ? `?status=${statusFilter}` : '';
-      return api.get(`/reports/anomalies${params}`).then((r) => r.data);
+      return api.get(`/reports/anomalies${params}`).then((r) => r.data.data);
     },
   });
 
@@ -46,10 +46,19 @@ export default function AnomaliesPage() {
     onError: () => toast.error('Erro ao actualizar estado'),
   });
 
+  const { mutate: deleteAnomaly } = useMutation({
+    mutationFn: (id: string) => api.delete(`/reports/anomalies/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['anomalies'] });
+      toast.success('Anomalia eliminada');
+    },
+    onError: () => toast.error('Erro ao eliminar anomalia'),
+  });
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-100">Anomalias</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Anomalias</h1>
         <p className="text-sm text-gray-500">Relatórios de anomalias e não conformidades</p>
       </div>
 
@@ -61,7 +70,7 @@ export default function AnomaliesPage() {
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               statusFilter === opt.value
                 ? 'bg-blue-600 text-white'
-                : 'bg-surface-2 text-gray-400 border border-border hover:bg-surface-1'
+                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
             }`}
           >
             {opt.label}
@@ -73,7 +82,7 @@ export default function AnomaliesPage() {
         {isLoading ? (
           <div className="p-4 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-md bg-surface-3" />
+              <div key={i} className="h-16 animate-pulse rounded-md bg-gray-100" />
             ))}
           </div>
         ) : !anomalies?.length ? (
@@ -84,7 +93,7 @@ export default function AnomaliesPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-border/50 bg-surface-1">
+              <thead className="border-b border-gray-100 bg-gray-50">
                 <tr className="text-left text-xs font-medium text-gray-500">
                   <th className="px-6 py-3">Título</th>
                   <th className="px-6 py-3">Área</th>
@@ -95,20 +104,20 @@ export default function AnomaliesPage() {
                   <th className="px-6 py-3">Acção</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/30">
+              <tbody className="divide-y divide-gray-50">
                 {anomalies.map((anomaly) => {
                   const next = nextStatus[anomaly.status];
                   return (
-                    <tr key={anomaly.id} className="hover:bg-surface-1">
+                    <tr key={anomaly.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <p className="font-medium text-gray-100">{anomaly.title}</p>
+                        <p className="font-medium text-gray-900">{anomaly.title}</p>
                         {anomaly.description && (
                           <p className="text-xs text-gray-400 line-clamp-1 max-w-xs">
                             {anomaly.description}
                           </p>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-gray-500">{anomaly.area?.name ?? anomaly.areaId}</td>
+                      <td className="px-6 py-4 text-gray-500">{anomaly.zona ? zonaLabel[anomaly.zona] : '—'}</td>
                       <td className="px-6 py-4">
                         <Badge status={anomaly.severity} />
                       </td>
@@ -120,16 +129,30 @@ export default function AnomaliesPage() {
                       </td>
                       <td className="px-6 py-4 text-gray-500">{anomaly.reporter?.name ?? anomaly.reporterId}</td>
                       <td className="px-6 py-4">
-                        {next ? (
-                          <button
-                            onClick={() => updateStatus({ id: anomaly.id, status: next.status })}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap"
-                          >
-                            {next.label}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {next ? (
+                            <button
+                              onClick={() => updateStatus({ id: anomaly.id, status: next.status })}
+                              className="text-xs font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap"
+                            >
+                              {next.label}
+                            </button>
+                          ) : null}
+                          {anomaly.status === 'RESOLVED' && (
+                            <button
+                              onClick={() => {
+                                if (confirm('Apagar esta anomalia resolvida?')) {
+                                  deleteAnomaly(anomaly.id);
+                                }
+                              }}
+                              className="text-red-400 hover:text-red-600 transition-colors"
+                              title="Apagar anomalia"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                          {!next && anomaly.status !== 'RESOLVED' && <span className="text-xs text-gray-400">—</span>}
+                        </div>
                       </td>
                     </tr>
                   );

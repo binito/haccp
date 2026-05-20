@@ -33,19 +33,21 @@ const TYPE_LABELS: Record<ShareReportType, string> = {
 };
 
 export default function ShareQrModal({ open, onClose, type, label, params, clientId, variant = 'modal' }: Props) {
-  const [shareId, setShareId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [copied, setCopied] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
-  const shareUrl = shareId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/share/${shareId}` : '';
+  const shareUrl = shareToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/share/${shareToken}` : '';
 
   useEffect(() => {
-    if (!open) { setShareId(null); return; }
+    if (!open) { setShareToken(null); setError(false); return; }
     setLoading(true);
+    setError(false);
     api.post('/shares', { type, label, params, clientId })
-      .then(r => setShareId(r.data.id))
-      .catch(() => {/* silencioso */})
+      .then(r => setShareToken(r.data.accessToken ?? null))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -62,7 +64,7 @@ export default function ShareQrModal({ open, onClose, type, label, params, clien
     const now = new Date().toLocaleString('pt-PT');
 
     const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"/>
-<title>QR Code HACCP — HACCP</title>
+<title>QR Code HACCP</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;background:#fff}
@@ -81,7 +83,7 @@ export default function ShareQrModal({ open, onClose, type, label, params, clien
 <p class="period">${label}</p>
 <div class="qr">${svgHtml}</div>
 <p class="url">${shareUrl}</p>
-<p class="footer">Documento gerado em ${now} via HACCP</p>
+<p class="footer">Documento gerado em ${now} via sistema HACCP</p>
 <script>window.onload=()=>setTimeout(()=>window.print(),200)</script>
 </body></html>`;
 
@@ -96,7 +98,7 @@ export default function ShareQrModal({ open, onClose, type, label, params, clien
   const isSheet = variant === 'sheet';
 
   const content = (
-    <div className={isSheet ? 'bg-surface-2 rounded-t-2xl p-6 pb-10 space-y-4' : 'space-y-4'} onClick={e => e.stopPropagation()}>
+    <div className={isSheet ? 'bg-white rounded-t-2xl p-6 pb-10 space-y-4' : 'space-y-4'} onClick={e => e.stopPropagation()}>
       {isSheet && <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto -mt-2 mb-2" />}
 
       <div className="flex items-start justify-between">
@@ -107,7 +109,7 @@ export default function ShareQrModal({ open, onClose, type, label, params, clien
           </p>
           <p className="text-xs text-gray-500 mt-0.5">{label}</p>
         </div>
-        <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:text-gray-400 hover:bg-surface-3">
+        <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100">
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -119,14 +121,21 @@ export default function ShareQrModal({ open, onClose, type, label, params, clien
         </div>
       )}
 
-      {!loading && shareId && (
+      {!loading && error && (
+        <div className="flex flex-col items-center py-8 gap-2 text-center">
+          <p className="text-sm font-medium text-red-600">Não foi possível gerar o link.</p>
+          <p className="text-xs text-gray-400">Verifica se estás autenticado e tenta novamente.</p>
+        </div>
+      )}
+
+      {!loading && !error && shareToken && (
         <>
-          <div ref={qrRef} className="flex justify-center p-4 bg-surface-2 border border-gray-200 rounded-xl">
+          <div ref={qrRef} className="flex justify-center p-4 bg-white border border-gray-200 rounded-xl">
             <QRCode value={shareUrl} size={180} />
           </div>
 
           <div className="flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
-            <span className="flex-1 text-xs text-gray-400 truncate">{shareUrl}</span>
+            <span className="flex-1 text-xs text-gray-600 truncate">{shareUrl}</span>
             <button onClick={copy} className="shrink-0 p-1 text-gray-400 hover:text-blue-600">
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </button>
@@ -158,7 +167,7 @@ export default function ShareQrModal({ open, onClose, type, label, params, clien
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-surface-2 rounded-2xl shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
         {content}
       </div>
     </div>

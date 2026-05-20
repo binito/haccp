@@ -167,12 +167,12 @@ export function ShaderBackground() {
 
       gl!.useProgram(prog);
 
-      const aPos = gl!.getAttribLocation(prog, 'a_pos');
+      const aPos = gl!.getAttribLocation(prog!, 'a_pos');
       gl!.bindBuffer(gl!.ARRAY_BUFFER, buf);
       gl!.enableVertexAttribArray(aPos);
       gl!.vertexAttribPointer(aPos, 2, gl!.FLOAT, false, 0, 0);
 
-      const loc = (name: string) => gl!.getUniformLocation(prog, name);
+      const loc = (name: string) => gl!.getUniformLocation(prog!, name);
       gl!.uniform2f(loc('u_res'), canvas!.width, canvas!.height);
       gl!.uniform2f(loc('u_mouse'), mouse.x, mouse.y);
       gl!.uniform2f(loc('u_mouseV'), 0, 0);

@@ -69,13 +69,24 @@ export interface AnomalyPhoto {
   filename: string;
 }
 
+export type HigienizacaoZona = 'COZINHA' | 'PRODUCAO' | 'ARMAZEM' | 'SERVICO';
+
+export const zonaLabel: Record<HigienizacaoZona, string> = {
+  COZINHA: 'Cozinha',
+  PRODUCAO: 'Produção',
+  ARMAZEM: 'Armazém',
+  SERVICO: 'Serviço',
+};
+
 export interface AnomalyReport {
   id: string;
   title: string;
   description: string;
   status: AnomalyStatus;
   severity: AnomalySeverity;
-  areaId: string;
+  zona?: HigienizacaoZona;
+  clientId: string;
+  areaId?: string;
   area?: Area;
   reporterId: string;
   reporter?: User;
@@ -83,6 +94,13 @@ export interface AnomalyReport {
   resolvedAt?: string;
   resolvedNote?: string;
   createdAt: string;
+}
+
+export interface ZonaConfig {
+  id: string;
+  zona: HigienizacaoZona;
+  itens: { key: string; label: string; period: string }[];
+  clientId: string;
 }
 
 export interface Product {
@@ -117,6 +135,28 @@ export interface ConsumableReport {
   createdAt: string;
 }
 
+export type OrderStatus = 'DRAFT' | 'PENDING' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED';
+
+export interface OrderItem {
+  id: string;
+  quantity: number;
+  unitPrice?: number;
+  productId: string;
+  product?: Product;
+}
+
+export interface Order {
+  id: string;
+  status: OrderStatus;
+  notes?: string;
+  totalAmount?: number;
+  clientId: string;
+  client?: Client;
+  items?: OrderItem[];
+  createdAt: string;
+  deliveredAt?: string;
+}
+
 // Aliases para compatibilidade com páginas geradas
 export type Anomaly = AnomalyReport;
 export type ChecklistExecution = ChecklistEntry;
@@ -126,6 +166,17 @@ export interface DashboardStats {
   totalClients: number;
   totalAreas: number;
   openAnomalies: number;
-  openShortageReports: number;
+  pendingOrders: number;
+  lowStockAlerts: number;
   checklistsThisMonth: number;
+  consumableShortagCount: number;
+}
+
+export interface OrderSuggestion {
+  productId: string;
+  productName: string;
+  unit: string;
+  mediaMensal: number;
+  stockAtual: number;
+  quantidadeSugerida: number;
 }

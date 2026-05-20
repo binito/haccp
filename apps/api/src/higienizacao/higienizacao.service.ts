@@ -44,6 +44,18 @@ export class HigienizacaoService {
     return { data, total, page, limit: safeLimit };
   }
 
+  async getZonaConfigs(clientId: string) {
+    return this.prisma.higienizacaoZonaConfig.findMany({ where: { clientId } });
+  }
+
+  async upsertZonaConfig(clientId: string, zona: HigienizacaoZona, itens: { key: string; label: string; period: string }[]) {
+    return this.prisma.higienizacaoZonaConfig.upsert({
+      where: { clientId_zona: { clientId, zona } },
+      create: { clientId, zona, itens },
+      update: { itens },
+    });
+  }
+
   async remove(id: string, actor: AuthUser) {
     const rec = await this.prisma.higienizacaoRecord.findUnique({ where: { id }, select: { clientId: true } });
     if (!rec) throw new NotFoundException('Registo não encontrado');

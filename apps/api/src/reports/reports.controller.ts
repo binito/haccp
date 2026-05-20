@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -22,6 +23,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AuthUser } from '../common/types/auth-user.type';
+import { CursorPaginationDto } from '../common/dto/pagination.dto';
 import { CreateAnomalyDto } from './dto/create-anomaly.dto';
 import { ReportsService } from './reports.service';
 
@@ -68,18 +70,28 @@ export class ReportsController {
     @TenantId() clientId: string,
     @Query('areaId') areaId: string,
     @Query('status') status: string,
+    @Query('zona') zona: string,
+    @Query() pagination: CursorPaginationDto,
     @CurrentUser() user: AuthUser,
   ) {
     return this.reportsService.findAll(
       user.role === Role.SUPER_ADMIN ? (clientId || undefined) : clientId,
       areaId,
       status as AnomalyStatus,
+      zona,
+      pagination,
     );
   }
 
   @Get('anomalies/:id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.reportsService.findOne(id, user);
+  }
+
+  @Roles(Role.SUPER_ADMIN, Role.CLIENT_ADMIN)
+  @Delete('anomalies/:id')
+  deleteAnomaly(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.reportsService.deleteAnomaly(id, user);
   }
 
   @Roles(Role.SUPER_ADMIN, Role.CLIENT_ADMIN)

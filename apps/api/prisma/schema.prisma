@@ -39,9 +39,22 @@ model User {
   higienizacaoRecords HigienizacaoRecord[]
   desinfecaoRecords DesinfecaoRecord[]
   oleoFrituraRecords OleoFrituraRecord[]
+  refreshTokens    RefreshToken[]
 
   @@index([clientId])
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 // ─────────────────────────────────────────────
@@ -68,6 +81,8 @@ model Client {
   higienizacaoRecords HigienizacaoRecord[]
   desinfecaoRecords DesinfecaoRecord[]
   oleoFrituraRecords OleoFrituraRecord[]
+  anomalyReports   AnomalyReport[]
+  higienizacaoZonaConfigs HigienizacaoZonaConfig[]
 
   @@map("clients")
 }
@@ -195,18 +210,22 @@ enum AnomalySeverity {
 }
 
 model AnomalyReport {
-  id           String          @id @default(uuid())
+  id           String           @id @default(uuid())
   title        String
-  description  String          @db.Text
-  status       AnomalyStatus   @default(OPEN)
-  severity     AnomalySeverity @default(MEDIUM)
+  description  String           @db.Text
+  status       AnomalyStatus    @default(OPEN)
+  severity     AnomalySeverity  @default(MEDIUM)
+  zona         HigienizacaoZona?
   resolvedAt   DateTime?
   resolvedNote String?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  area         Area   @relation(fields: [areaId], references: [id])
-  areaId       String
+  area         Area?     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  areaId       String?
+
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String
 
   reporter     User   @relation(fields: [reporterId], references: [id])
   reporterId   String
@@ -214,7 +233,7 @@ model AnomalyReport {
   photos       AnomalyPhoto[]
 
   @@index([status])
-  @@index([areaId, createdAt])
+  @@index([clientId, createdAt])
   @@map("anomaly_reports")
 }
 
@@ -425,6 +444,18 @@ model HigienizacaoRecord {
   @@map("higienizacao_records")
 }
 
+model HigienizacaoZonaConfig {
+  id       String           @id @default(uuid())
+  zona     HigienizacaoZona
+  itens    Json             // [{key: string, label: string, period: 'D'|'S'|'T'}]
+
+  client   Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String
+
+  @@unique([clientId, zona])
+  @@map("higienizacao_zona_config")
+}
+
 // ─────────────────────────────────────────────
 // R4 – REGISTO DE DESINFEÇÃO DE PRODUTOS
 // ─────────────────────────────────────────────
@@ -474,6 +505,25 @@ model OleoFrituraRecord {
 }
 
 // ─────────────────────────────────────────────
+// CONVITES
+// ─────────────────────────────────────────────
+
+model Invitation {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  email       String?
+  role        Role     @default(CLIENT_ADMIN)
+  clientId    String
+  used        Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  createdById String
+
+  @@index([clientId])
+  @@map("invitations")
+}
+
+// ─────────────────────────────────────────────
 // REPORT SHARES
 // ─────────────────────────────────────────────
 
@@ -484,6 +534,8 @@ model ReportShare {
   params      Json
   clientId    String
   createdById String
+  accessToken String?    @unique
+  expiresAt   DateTime?
   createdAt   DateTime   @default(now())
 
   @@index([clientId])

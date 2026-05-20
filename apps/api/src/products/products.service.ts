@@ -1,31 +1,48 @@
 import {
   ConflictException,
   Injectable,
+  Inject,
   NotFoundException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 
+const PRODUCTS_CACHE_KEY = 'products:all';
+const PRODUCTS_TTL = 300000; // 5 minutes
+
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
+  ) {}
 
   async create(dto: CreateProductDto) {
     if (dto.sku) {
       const existe = await this.prisma.product.findUnique({ where: { sku: dto.sku } });
       if (existe) throw new ConflictException('SKU já existe');
     }
-    return this.prisma.product.create({ data: dto });
+    const result = await this.prisma.product.create({ data: dto });
+    await this.cache.del(PRODUCTS_CACHE_KEY);
+    return result;
   }
 
   async findAll(category?: string) {
-    return this.prisma.product.findMany({
+    if (!category) {
+      const cached = await this.cache.get(PRODUCTS_CACHE_KEY);
+      if (cached) return cached;
+    }
+    const data = await this.prisma.product.findMany({
       where: {
         active: true,
         ...(category ? { category } : {}),
       },
       orderBy: { name: 'asc' },
     });
+    if (!category) await this.cache.set(PRODUCTS_CACHE_KEY, data, PRODUCTS_TTL);
+    return data;
   }
 
   async findOne(id: string) {
@@ -36,16 +53,20 @@ export class ProductsService {
 
   async update(id: string, data: Partial<CreateProductDto>) {
     await this.findOne(id);
-    return this.prisma.product.update({ where: { id }, data });
+    const result = await this.prisma.product.update({ where: { id }, data });
+    await this.cache.del(PRODUCTS_CACHE_KEY);
+    return result;
   }
 
   async deactivate(id: string) {
     await this.findOne(id);
-    return this.prisma.product.update({
+    const result = await this.prisma.product.update({
       where: { id },
       data: { active: false },
       select: { id: true, active: true },
     });
+    await this.cache.del(PRODUCTS_CACHE_KEY);
+    return result;
   }
 
   async importFromCsv(buffer: Buffer): Promise<{ created: number; updated: number; skipped: number }> {
@@ -62,7 +83,6 @@ export class ProductsService {
     for (const line of dataLines) {
       // Parsear CSV com delimitador ";" e aspas
       const cols = line.split(';').map((c) => c.replace(/^"|"$/g, '').trim());
-      // Estrutura: [vazio, sku, nome, família, sub-família, marca, stock, stockTécnico, custMédio, preçoVenda, pvpIva, margem, valorLucro, estado, tipoArtigo, vazio]
       const sku  = cols[1];
       const nome = cols[2];
       const familia = cols[3];
@@ -70,7 +90,6 @@ export class ProductsService {
       const precoVenda = cols[9];
       const tipoArtigo = cols[14]; // N=produto, S=serviço
 
-      // Ignorar linhas inválidas ou serviços
       if (!sku || !nome || sku === '.' || tipoArtigo === 'S') {
         skipped++;
         continue;
@@ -95,6 +114,7 @@ export class ProductsService {
       }
     }
 
+    await this.cache.del(PRODUCTS_CACHE_KEY);
     return { created, updated, skipped };
   }
 }

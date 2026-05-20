@@ -20,6 +20,14 @@ export class CreateAnomalyDto {
   severity?: AnomalySeverity;
 
   @IsString()
-  @IsNotEmpty()
-  areaId: string;
+  @IsOptional()
+  areaId?: string;
+
+  @IsString()
+  @IsOptional()
+  clientId?: string;
+
+  @IsString()
+  @IsOptional()
+  zona?: string;
 }

@@ -2,11 +2,18 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserCircle, List, Plus, Pencil, Eye, EyeOff, X } from 'lucide-react';
+import { UserCircle, List, Plus, Pencil, Eye, EyeOff, X, ShieldOff, Trash2, UserPlus, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { User, Client } from '@/types';
+
+interface Invitation {
+  id: string;
+  email: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
 
 const ROLE_LABELS = { SUPER_ADMIN: 'Super Admin', CLIENT_ADMIN: 'Gestor', OPERATOR: 'Operacional' };
 const ROLE_COLORS = {
@@ -20,10 +27,13 @@ const emptyForm = { name: '', email: '', password: '', role: 'OPERATOR' as User[
 export default function UtilizadoresMobilePage() {
   const { user: me } = useAuthStore();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'list' | 'form'>('list');
+  const [tab, setTab] = useState<'list' | 'form' | 'invite'>('list');
   const [editing, setEditing] = useState<User | null>(null);
   const [form, setForm] = useState({ ...emptyForm, clientId: me?.clientId ?? '' });
   const [showPass, setShowPass] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['users'],
@@ -40,6 +50,18 @@ export default function UtilizadoresMobilePage() {
       return api.get('/clients').then(r => r.data);
     },
     enabled: !!me && me.role !== 'OPERATOR',
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('Utilizador desativado'); },
+    onError: () => toast.error('Erro ao desativar'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}/permanent`).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('Utilizador eliminado'); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erro ao eliminar'),
   });
 
   const saveMutation = useMutation({
@@ -77,6 +99,40 @@ export default function UtilizadoresMobilePage() {
     setForm({ ...emptyForm, clientId: me?.clientId ?? '' });
   }
 
+  const { data: pendingInvites = [] } = useQuery<Invitation[]>({
+    queryKey: ['invitations', me?.clientId],
+    queryFn: () => api.get(`/invitations?clientId=${me!.clientId}`).then(r => r.data),
+    enabled: me?.role === 'CLIENT_ADMIN' && !!me?.clientId && tab === 'invite',
+  });
+
+  const createInviteMutation = useMutation({
+    mutationFn: () => api.post('/invitations', {
+      clientId: me!.clientId,
+      email: inviteEmail || undefined,
+    }).then(r => r.data),
+    onSuccess: (data) => {
+      setGeneratedLink(data.link);
+      qc.invalidateQueries({ queryKey: ['invitations', me?.clientId] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erro ao gerar convite'),
+  });
+
+  const revokeInviteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/invitations/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invitations', me?.clientId] });
+      toast.success('Convite revogado');
+    },
+  });
+
+  function copyLink() {
+    if (!generatedLink) return;
+    navigator.clipboard.writeText(generatedLink);
+    setCopied(true);
+    toast.success('Link copiado!');
+    setTimeout(() => setCopied(false), 3000);
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { toast.error('Nome obrigatório'); return; }
@@ -107,8 +163,19 @@ export default function UtilizadoresMobilePage() {
           }`}
         >
           <Plus size={16} />
-          {editing ? 'Editar' : 'Novo Utilizador'}
+          {editing ? 'Editar' : 'Novo'}
         </button>
+        {me?.role === 'CLIENT_ADMIN' && (
+          <button
+            onClick={() => { setTab('invite'); setGeneratedLink(null); setInviteEmail(''); }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors ${
+              tab === 'invite' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'
+            }`}
+          >
+            <UserPlus size={16} />
+            Convidar
+          </button>
+        )}
       </div>
 
       {/* Lista */}
@@ -152,14 +219,93 @@ export default function UtilizadoresMobilePage() {
                       {u.active ? 'Ativo' : 'Inativo'}
                     </span>
                     {u.id !== me?.id && (
-                      <button onClick={() => openEdit(u)} className="p-2 text-gray-400 active:text-blue-600">
-                        <Pencil size={15} />
-                      </button>
+                      <>
+                        {u.active && (
+                          <button
+                            onClick={() => { if (confirm(`Desativar ${u.name}?`)) deactivateMutation.mutate(u.id); }}
+                            className="p-2 text-gray-400 active:text-orange-500"
+                            title="Desativar"
+                          >
+                            <ShieldOff size={15} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { if (confirm(`Apagar permanentemente ${u.name}? Esta ação não pode ser desfeita.`)) deleteMutation.mutate(u.id); }}
+                          className="p-2 text-gray-400 active:text-red-500"
+                          title="Apagar"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                        <button onClick={() => openEdit(u)} className="p-2 text-gray-400 active:text-blue-600">
+                          <Pencil size={15} />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {/* Convidar */}
+      {tab === 'invite' && (
+        <div className="p-4 space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-800 mb-1">Convidar Operacional</p>
+            <p className="text-xs text-gray-500">Gera um link para um novo operacional se registar na plataforma.</p>
+          </div>
+          <div className="space-y-2">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              placeholder="Email do convidado (opcional)"
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={() => { setGeneratedLink(null); createInviteMutation.mutate(); }}
+              disabled={createInviteMutation.isPending}
+              className="w-full py-3 rounded-xl font-semibold text-white bg-blue-600 active:bg-blue-700 disabled:opacity-50"
+            >
+              {createInviteMutation.isPending ? 'A gerar...' : 'Gerar Link de Convite'}
+            </button>
+          </div>
+
+          {generatedLink && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+              <p className="text-xs text-blue-600 font-medium mb-2">Link gerado — partilha com o novo operacional:</p>
+              <div className="flex items-center gap-2">
+                <p className="flex-1 text-xs text-blue-800 font-mono break-all">{generatedLink}</p>
+                <button onClick={copyLink} className="shrink-0 p-2 rounded-lg bg-blue-100 active:bg-blue-200 text-blue-700">
+                  {copied ? <Check size={16} /> : <Copy size={16} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {pendingInvites.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-2">Convites pendentes</p>
+              <div className="space-y-2">
+                {pendingInvites.map(inv => (
+                  <div key={inv.id} className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-3 py-2.5 shadow-sm">
+                    <div>
+                      <p className="text-sm text-gray-800">{inv.email ?? 'Sem email'}</p>
+                      <p className="text-xs text-gray-400">Expira {new Date(inv.expiresAt).toLocaleDateString('pt-PT')}</p>
+                    </div>
+                    <button
+                      onClick={() => revokeInviteMutation.mutate(inv.id)}
+                      className="p-2 text-gray-300 active:text-red-500"
+                      title="Revogar"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}

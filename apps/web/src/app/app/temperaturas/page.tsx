@@ -2,10 +2,11 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Thermometer, CheckCircle2, Clock, Plus } from 'lucide-react';
+import { Thermometer, CheckCircle2, Clock, Plus, List, QrCode, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import ShareQrModal from '@/components/ShareQrModal';
 
 interface TodayRecord {
   temperature: number;
@@ -41,6 +42,16 @@ function tempOk(temp: number, min?: number, max?: number) {
   return true;
 }
 
+interface TempRecord {
+  id: string;
+  temperature: number;
+  session: 'MORNING' | 'EVENING';
+  notes?: string;
+  recordedAt: string;
+  equipment: { id: string; name: string; minTemp?: number; maxTemp?: number; };
+  operator: { name: string; };
+}
+
 interface EquipmentForm {
   name: string;
   type: 'FRIDGE' | 'FREEZER';
@@ -51,10 +62,15 @@ interface EquipmentForm {
 
 const emptyForm = (): EquipmentForm => ({ name: '', type: 'FRIDGE', location: '', minTemp: '', maxTemp: '' });
 
+function today() { return new Date().toISOString().split('T')[0]; }
+function thirtyDaysAgo() { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0]; }
+
 export default function TemperaturasPage() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const canManage = user?.role === 'CLIENT_ADMIN' || user?.role === 'SUPER_ADMIN';
+  const [tab, setTab] = useState<'today' | 'history'>('today');
+  const [showShare, setShowShare] = useState(false);
 
   const { data: equipment = [], isLoading } = useQuery<Equipment[]>({
     queryKey: ['app-temperature-today'],
@@ -132,13 +148,90 @@ export default function TemperaturasPage() {
     }
   }, [eqForm, user, qc]);
 
+  const { data: historyRecords = [], isLoading: historyLoading } = useQuery<TempRecord[]>({
+    queryKey: ['app-temperature-history'],
+    queryFn: () => api.get(`/temperature/records?startDate=${thirtyDaysAgo()}&endDate=${today()}`).then(r => r.data),
+    enabled: tab === 'history',
+  });
+
   const total = equipment.length;
   const complete = equipment.filter(e => e.today.morning && e.today.evening).length;
   const pending = total - complete;
+  const incomplete = equipment.filter(e => !e.today.morning || !e.today.evening);
 
   return (
     <>
-      <div className="p-4 space-y-4">
+      {/* Tab header */}
+      <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
+        <button onClick={() => setTab('today')} className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors ${tab === 'today' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
+          <Thermometer size={16} /> Hoje
+        </button>
+        <button onClick={() => setTab('history')} className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors ${tab === 'history' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
+          <List size={16} /> Histórico
+        </button>
+        {tab === 'history' && historyRecords.length > 0 && (
+          <button onClick={() => setShowShare(true)} className="px-3 text-gray-400 hover:text-blue-600 border-l border-gray-100">
+            <QrCode size={18} />
+          </button>
+        )}
+      </div>
+
+      {tab === 'history' && (
+        <div className="p-4 space-y-3">
+          {historyLoading ? (
+            Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)
+          ) : !historyRecords.length ? (
+            <div className="flex flex-col items-center py-16 text-gray-400">
+              <Thermometer size={40} className="mb-2 opacity-30" />
+              <p className="text-sm">Sem registos nos últimos 30 dias</p>
+            </div>
+          ) : historyRecords.map(r => {
+            const ok = tempOk(r.temperature, r.equipment.minTemp, r.equipment.maxTemp);
+            const dt = new Date(r.recordedAt);
+            return (
+              <div key={r.id} className={`bg-white rounded-xl p-4 shadow-sm border ${ok ? 'border-gray-100' : 'border-l-4 border-l-red-500 border-gray-100'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{r.equipment.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {dt.toLocaleDateString('pt-PT')} · {dt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} · {r.session === 'MORNING' ? 'Manhã' : 'Tarde'} · {r.operator.name}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className={`text-lg font-bold ${ok ? 'text-green-600' : 'text-red-600'}`}>{r.temperature}°C</span>
+                    <span className={`text-xs font-semibold ${ok ? 'text-green-600' : 'text-red-600'}`}>{ok ? '✓ OK' : '⚠ NC'}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'today' && (<div className="p-4 space-y-4">
+        {/* Banner — leituras em falta */}
+        {incomplete.length > 0 && !isLoading && (
+          <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-orange-500" />
+              <div>
+                <p className="text-sm font-semibold text-orange-800">
+                  {incomplete.length === 1 ? '1 equipamento' : `${incomplete.length} equipamentos`} sem leitura completa
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {incomplete.map(eq => (
+                    <li key={eq.id} className="text-xs text-orange-700">
+                      <span className="font-medium">{eq.name}</span>
+                      {' — '}
+                      {!eq.today.morning && !eq.today.evening ? 'sem leituras' : !eq.today.morning ? 'falta manhã' : 'falta tarde'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Resumo */}
         {total > 0 && (
           <div className={`rounded-xl p-4 ${pending === 0 ? 'bg-green-600' : 'bg-blue-600'} text-white`}>
@@ -226,7 +319,7 @@ export default function TemperaturasPage() {
             </div>
           </div>
         ))}
-      </div>
+      </div>)}
 
       {/* FAB — só para gestores */}
       {canManage && equipment.length > 0 && (
@@ -308,6 +401,16 @@ export default function TemperaturasPage() {
           </div>
         </div>
       )}
+
+      <ShareQrModal
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        variant="sheet"
+        type="TEMPERATURAS"
+        label="Temperaturas — últimos 30 dias"
+        params={{ startDate: thirtyDaysAgo(), endDate: today() }}
+        clientId={user?.clientId}
+      />
 
       {/* Bottom sheet — novo equipamento */}
       {showNewEq && (

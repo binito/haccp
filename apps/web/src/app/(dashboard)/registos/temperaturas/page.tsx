@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Thermometer, Plus, Pencil, Trash2, CheckCircle, Clock,
-  Download, Printer, AlertTriangle,
+  Download, Printer, AlertTriangle, QrCode,
 } from 'lucide-react';
+import ShareQrModal from '@/components/ShareQrModal';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -185,7 +186,7 @@ function buildPrintHtml(records: TempRecord[], startDate: string, endDate: strin
 </div>
 ${sections}
 <footer>
-  <span>Gerado em ${now} — Sistema HACCP</span>
+  <span>Gerado em ${now} — Sistema Patakus</span>
   <span>Documento de uso interno / Apresentar às autoridades competentes quando solicitado</span>
 </footer>
 </body></html>`;
@@ -199,6 +200,7 @@ export default function TemperaturePage() {
   const [tab, setTab] = useState<'today' | 'report'>('today');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Equipment | null>(null);
+  const [showShare, setShowShare] = useState(false);
 
   // filtros relatório
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
@@ -303,12 +305,13 @@ export default function TemperaturePage() {
   const nonConform = records.filter(r => !tempOk(r.temperature, r.equipment.minTemp, r.equipment.maxTemp));
   const total = equipmentToday.length;
   const complete = equipmentToday.filter(e => e.today.morning && e.today.evening).length;
+  const incomplete = equipmentToday.filter(e => !e.today.morning || !e.today.evening);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-100">Temperaturas</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Temperaturas</h1>
           <p className="text-sm text-gray-500">Controlo de arcas e frigoríficos</p>
         </div>
         {user?.role !== 'OPERATOR' && (
@@ -318,12 +321,41 @@ export default function TemperaturePage() {
         )}
       </div>
 
+      {/* Banner — leituras em falta */}
+      {incomplete.length > 0 && !todayLoading && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-orange-500" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-orange-800">
+                {incomplete.length === 1
+                  ? '1 equipamento sem leitura completa hoje'
+                  : `${incomplete.length} equipamentos sem leitura completa hoje`}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {incomplete.map(eq => (
+                  <li key={eq.id} className="text-sm text-orange-700">
+                    <span className="font-medium">{eq.name}</span>
+                    {' — '}
+                    {!eq.today.morning && !eq.today.evening
+                      ? 'sem leituras'
+                      : !eq.today.morning
+                      ? 'falta manhã'
+                      : 'falta tarde'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex border-b border-border">
+      <div className="flex border-b border-gray-200">
         {[{ id: 'today', label: 'Hoje' }, { id: 'report', label: 'Relatório' }].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
             className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === t.id ? 'border-primary-400 text-primary-400' : 'border-transparent text-gray-500 hover:text-gray-300'
+              tab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >{t.label}</button>
         ))}
@@ -345,7 +377,7 @@ export default function TemperaturePage() {
                       <s.icon className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-gray-100">{s.value}</p>
+                      <p className="text-2xl font-bold text-gray-900">{s.value}</p>
                       <p className="text-xs text-gray-500">{s.label}</p>
                     </div>
                   </div>
@@ -356,7 +388,7 @@ export default function TemperaturePage() {
 
           {todayLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => <Card key={i}><div className="h-28 animate-pulse rounded-md bg-surface-3" /></Card>)}
+              {Array.from({ length: 3 }).map((_, i) => <Card key={i}><div className="h-28 animate-pulse rounded-md bg-gray-100" /></Card>)}
             </div>
           ) : !equipmentToday.length ? (
             <Card>
@@ -378,7 +410,7 @@ export default function TemperaturePage() {
                         <Thermometer className={`h-4 w-4 ${eq.type === 'FREEZER' ? 'text-blue-600' : 'text-cyan-600'}`} />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-gray-100 truncate">{eq.name}</p>
+                        <p className="font-semibold text-gray-900 truncate">{eq.name}</p>
                         <p className="text-xs text-gray-400">{eq.type === 'FREEZER' ? 'Arca / Congelador' : 'Frigorífico'}{eq.location ? ` · ${eq.location}` : ''}</p>
                         {user?.role === 'SUPER_ADMIN' && eq.client && (
                           <p className="text-xs font-medium text-blue-600 truncate">{eq.client.name}</p>
@@ -387,7 +419,7 @@ export default function TemperaturePage() {
                     </div>
                     {user?.role !== 'OPERATOR' && (
                       <div className="flex gap-0.5 shrink-0 ml-2">
-                        <button onClick={() => openEdit(eq)} className="rounded p-1 text-gray-400 hover:bg-surface-3 hover:text-gray-400"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => openEdit(eq)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"><Pencil className="h-3.5 w-3.5" /></button>
                         <button onClick={() => confirmDelete(eq)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     )}
@@ -429,30 +461,30 @@ export default function TemperaturePage() {
           <Card>
             <div className="flex flex-wrap gap-3 items-end">
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">Período</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Período</label>
                 <select value={timeRange} onChange={e => setTimeRange(e.target.value as TimeRange)}
-                  className="rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {timeRanges.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               {timeRange === 'custom' && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1">De</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">De</label>
                     <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-                      className="rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1">Até</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Até</label>
                     <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-                      className="rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </>
               )}
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">Equipamento</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Equipamento</label>
                 <select value={filterEq} onChange={e => setFilterEq(e.target.value)}
-                  className="rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Todos</option>
                   {allEquipment.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
@@ -460,6 +492,9 @@ export default function TemperaturePage() {
               <div className="flex gap-2 ml-auto">
                 <Button variant="secondary" className="gap-2" onClick={exportCsv} disabled={!records.length}>
                   <Download className="h-4 w-4" /> CSV
+                </Button>
+                <Button variant="secondary" className="gap-2" onClick={() => setShowShare(true)} disabled={!records.length}>
+                  <QrCode className="h-4 w-4" /> Partilhar
                 </Button>
                 <Button className="gap-2" onClick={printReport} disabled={!records.length}>
                   <Printer className="h-4 w-4" /> Imprimir / PDF
@@ -472,7 +507,7 @@ export default function TemperaturePage() {
           {records.length > 0 && (
             <div className="grid grid-cols-3 gap-4">
               <Card>
-                <p className="text-2xl font-bold text-gray-100">{records.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{records.length}</p>
                 <p className="text-xs text-gray-500">Registos no período</p>
               </Card>
               <Card>
@@ -490,7 +525,7 @@ export default function TemperaturePage() {
           <Card padding="none">
             {recLoading ? (
               <div className="p-4 space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-md bg-surface-3" />)}
+                {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-md bg-gray-100" />)}
               </div>
             ) : !records.length ? (
               <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -500,7 +535,7 @@ export default function TemperaturePage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b border-border/50 bg-surface-1">
+                  <thead className="border-b border-gray-100 bg-gray-50">
                     <tr className="text-left text-xs font-medium text-gray-500">
                       <th className="px-4 py-3">Data / Hora</th>
                       <th className="px-4 py-3">Sessão</th>
@@ -513,12 +548,12 @@ export default function TemperaturePage() {
                       <th className="px-4 py-3">Obs.</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/30">
+                  <tbody className="divide-y divide-gray-50">
                     {records.map(r => {
                       const ok = tempOk(r.temperature, r.equipment.minTemp, r.equipment.maxTemp);
                       return (
-                        <tr key={r.id} className={ok ? 'hover:bg-surface-1' : 'bg-red-50 hover:bg-red-100'}>
-                          <td className="px-4 py-3 text-gray-300 whitespace-nowrap">
+                        <tr key={r.id} className={ok ? 'hover:bg-gray-50' : 'bg-red-50 hover:bg-red-100'}>
+                          <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                             {format(new Date(r.recordedAt), 'dd/MM/yyyy HH:mm', { locale: pt })}
                           </td>
                           <td className="px-4 py-3 text-gray-500">
@@ -528,7 +563,7 @@ export default function TemperaturePage() {
                             <td className="px-4 py-3 text-gray-500 text-xs">{r.equipment.client?.name ?? '—'}</td>
                           )}
                           <td className="px-4 py-3">
-                            <p className="font-medium text-gray-100">{r.equipment.name}</p>
+                            <p className="font-medium text-gray-900">{r.equipment.name}</p>
                             {r.equipment.location && <p className="text-xs text-gray-400">{r.equipment.location}</p>}
                           </td>
                           <td className={`px-4 py-3 font-bold ${ok ? 'text-green-700' : 'text-red-600'}`}>
@@ -555,14 +590,23 @@ export default function TemperaturePage() {
         </div>
       )}
 
+      <ShareQrModal
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        type="TEMPERATURAS"
+        label={`Temperaturas: ${dateRange.start} — ${dateRange.end}`}
+        params={{ startDate: dateRange.start, endDate: dateRange.end, ...(filterEq ? { equipmentId: filterEq } : {}) }}
+        clientId={user?.clientId}
+      />
+
       {/* Modal equipamento */}
       <Modal open={modalOpen} onClose={closeModal} title={editing ? 'Editar Equipamento' : 'Novo Equipamento'}>
         <form onSubmit={handleSubmit(d => saveMutation.mutate(d))} className="space-y-4">
           <Input label="Nome *" placeholder="ex: Arca Frigorífica 1, Frigorífico Bebidas"
             error={errors.name?.message} {...register('name', { required: 'Nome obrigatório' })} />
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Tipo *</label>
-            <select {...register('type')} className="w-full rounded-md border border-border bg-surface-2 text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+            <select {...register('type')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="FRIDGE">Frigorífico</option>
               <option value="FREEZER">Arca / Congelador</option>
             </select>

@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { HigienizacaoZona, Role } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { TenantId } from '../common/decorators/tenant-id.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -29,6 +29,21 @@ export class HigienizacaoController {
   @Post()
   create(@Body() dto: CreateHigienizacaoDto, @CurrentUser() user: AuthUser) {
     return this.service.create(dto, user.id, user.clientId!);
+  }
+
+  @Get('config')
+  getConfig(@TenantId() clientId: string) {
+    return this.service.getZonaConfigs(clientId);
+  }
+
+  @Roles(Role.SUPER_ADMIN, Role.CLIENT_ADMIN)
+  @Put('config/:zona')
+  upsertConfig(
+    @TenantId() clientId: string,
+    @Param('zona') zona: string,
+    @Body('itens') itens: { key: string; label: string; period: string }[],
+  ) {
+    return this.service.upsertZonaConfig(clientId, zona as HigienizacaoZona, itens);
   }
 
   @Roles(Role.SUPER_ADMIN, Role.CLIENT_ADMIN)

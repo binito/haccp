@@ -97,4 +97,18 @@ export class UsersService {
       select: { id: true, active: true },
     });
   }
+
+  async delete(id: string, actor: AuthUser) {
+    const target = await this.findOne(id);
+
+    if (actor.id === id) {
+      throw new ForbiddenException('Não pode apagar a sua própria conta');
+    }
+    if (actor.role === Role.CLIENT_ADMIN && target.clientId !== actor.clientId) {
+      throw new ForbiddenException('Acesso negado a este utilizador');
+    }
+
+    await this.prisma.user.delete({ where: { id } });
+    return { id };
+  }
 }

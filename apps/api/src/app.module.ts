@@ -1,6 +1,8 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { CsrfGuard } from './common/guards/csrf.guard';
 import { ConfigModule } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
@@ -22,10 +24,12 @@ import { HigienizacaoModule } from './higienizacao/higienizacao.module';
 import { DesinfecaoModule } from './desinfecao/desinfecao.module';
 import { OleosModule } from './oleos/oleos.module';
 import { SharesModule } from './shares/shares.module';
+import { InvitationsModule } from './invitations/invitations.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CacheModule.register({ isGlobal: true, ttl: 60000, max: 500 }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     WinstonModule.forRoot({
       transports: [
@@ -68,9 +72,11 @@ import { SharesModule } from './shares/shares.module';
     DesinfecaoModule,
     OleosModule,
     SharesModule,
+    InvitationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
   ],
 })
 export class AppModule implements NestModule {

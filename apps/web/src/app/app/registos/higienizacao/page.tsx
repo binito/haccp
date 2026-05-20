@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { List, Plus, SprayCan, QrCode } from 'lucide-react';
+import { List, Plus, SprayCan, QrCode, Settings, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -26,11 +26,49 @@ const ZONAS: { key: Zona; label: string; emoji: string }[] = [
   { key: 'SERVICO', label: 'Serviço', emoji: '🍽️' },
 ];
 
-const ITENS_POR_ZONA: Record<Zona, string[]> = {
-  COZINHA: ['Bancadas', 'Fogão', 'Forno', 'Fritadeira', 'Exaustor', 'Frigoríficos', 'Arcas', 'Equipamentos', 'Utensílios', 'Chão', 'Paredes', 'Teto', 'Lavatório', 'Esgotos'],
-  PRODUCAO: ['Bancadas', 'Equipamentos', 'Utensílios', 'Frigoríficos', 'Arcas', 'Chão', 'Paredes', 'Teto', 'Lavatório'],
-  ARMAZEM: ['Prateleiras', 'Chão', 'Paredes', 'Teto', 'Porta', 'Janelas'],
-  SERVICO: ['Balcão', 'Mesas', 'Cadeiras', 'Chão', 'Paredes', 'Teto', 'Lavatório', 'WC'],
+interface ZonaItem { key: string; label: string; period: string }
+interface ZonaConfig { zona: Zona; itens: ZonaItem[] }
+
+const DEFAULT_ITENS_ZONA: Record<Zona, ZonaItem[]> = {
+  COZINHA: [
+    { key: 'bancadas', label: 'Bancadas', period: 'D' },
+    { key: 'fogao', label: 'Fogão', period: 'D' },
+    { key: 'forno', label: 'Forno', period: 'D' },
+    { key: 'fritadeira', label: 'Fritadeira', period: 'D' },
+    { key: 'exaustor', label: 'Exaustor', period: 'S' },
+    { key: 'equipamentos', label: 'Equipamentos', period: 'S' },
+    { key: 'utensilios', label: 'Utensílios', period: 'D' },
+    { key: 'lavatorios', label: 'Lavatório', period: 'D' },
+    { key: 'caixotesLixo', label: 'Caixotes do Lixo', period: 'D' },
+    { key: 'paredes', label: 'Paredes', period: 'T' },
+    { key: 'teto', label: 'Teto', period: 'T' },
+  ],
+  PRODUCAO: [
+    { key: 'bancadas', label: 'Bancadas', period: 'D' },
+    { key: 'equipamentos', label: 'Equipamentos', period: 'S' },
+    { key: 'utensilios', label: 'Utensílios', period: 'S' },
+    { key: 'lavatorios', label: 'Lavatório', period: 'D' },
+    { key: 'pavimento', label: 'Chão', period: 'D' },
+    { key: 'paredes', label: 'Paredes', period: 'S' },
+    { key: 'teto', label: 'Teto', period: 'S' },
+  ],
+  ARMAZEM: [
+    { key: 'prateleiras', label: 'Prateleiras', period: 'S' },
+    { key: 'pavimento', label: 'Chão', period: 'D' },
+    { key: 'paredes', label: 'Paredes', period: 'S' },
+    { key: 'teto', label: 'Teto', period: 'S' },
+    { key: 'janelas', label: 'Janelas', period: 'S' },
+  ],
+  SERVICO: [
+    { key: 'balcao', label: 'Balcão', period: 'D' },
+    { key: 'mesas', label: 'Mesas', period: 'D' },
+    { key: 'cadeiras', label: 'Cadeiras', period: 'D' },
+    { key: 'pavimento', label: 'Chão', period: 'D' },
+    { key: 'paredes', label: 'Paredes', period: 'S' },
+    { key: 'teto', label: 'Teto', period: 'S' },
+    { key: 'lavatorios', label: 'Lavatório', period: 'D' },
+    { key: 'wc', label: 'WC', period: 'D' },
+  ],
 };
 
 const PERIODO_OPTS = [
@@ -41,39 +79,82 @@ const PERIODO_OPTS = [
 
 function today() { return new Date().toISOString().split('T')[0]; }
 function fmtDate(iso: string) { return new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+function slugify(label: string) {
+  return label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
 
 const ZONA_LABELS: Record<string, string> = { COZINHA: 'Cozinha', PRODUCAO: 'Produção', ARMAZEM: 'Armazém', SERVICO: 'Serviço' };
 
 export default function HigienizacaoPage() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
+  const isManager = user?.role === 'SUPER_ADMIN' || user?.role === 'CLIENT_ADMIN';
+
   const [tab, setTab] = useState<'list' | 'new'>('list');
   const [showShare, setShowShare] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
 
   const [zona, setZona] = useState<Zona>('COZINHA');
   const [periodo, setPeriodo] = useState<'D' | 'S' | 'T'>('D');
   const [checks, setChecks] = useState<Record<string, boolean>>({});
   const [obs, setObs] = useState('');
 
+  // config state
+  const [configItens, setConfigItens] = useState<ZonaItem[]>([]);
+  const [newLabel, setNewLabel] = useState('');
+  const [newPeriod, setNewPeriod] = useState<'D' | 'S' | 'T'>('D');
+
   const startDate = new Date(); startDate.setDate(startDate.getDate() - 30);
+
+  const { data: configs = [] } = useQuery<ZonaConfig[]>({
+    queryKey: ['higienizacao-config'],
+    queryFn: () => api.get('/registos/higienizacao/config').then(r => r.data),
+  });
 
   const { data: records = [], isLoading } = useQuery<HigienizacaoRecord[]>({
     queryKey: ['app-higienizacao'],
     queryFn: () => api.get(`/registos/higienizacao?startDate=${startDate.toISOString().split('T')[0]}&endDate=${today()}`).then(r => r.data.data),
   });
 
-  const itens = ITENS_POR_ZONA[zona];
-  const checkedCount = itens.filter(i => checks[i]).length;
+  const configMap = Object.fromEntries(configs.map(c => [c.zona, c.itens])) as Partial<Record<Zona, ZonaItem[]>>;
+  const itensZona: ZonaItem[] = configMap[zona] ?? DEFAULT_ITENS_ZONA[zona];
+  const checkedCount = itensZona.filter(i => checks[i.key]).length;
 
   function toggleZona(z: Zona) {
     setZona(z);
     setChecks({});
   }
 
+  function openConfig() {
+    setConfigItens([...(configMap[zona] ?? DEFAULT_ITENS_ZONA[zona])]);
+    setNewLabel('');
+    setNewPeriod('D');
+    setShowConfig(true);
+  }
+
+  function addConfigItem() {
+    const trimmed = newLabel.trim();
+    if (!trimmed) return;
+    const key = slugify(trimmed);
+    if (configItens.some(i => i.key === key)) { toast.error('Já existe'); return; }
+    setConfigItens(prev => [...prev, { key, label: trimmed, period: newPeriod }]);
+    setNewLabel('');
+  }
+
+  const { mutate: saveConfig, isPending: isSavingConfig } = useMutation({
+    mutationFn: () => api.put(`/registos/higienizacao/config/${zona}`, { itens: configItens }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['higienizacao-config'] });
+      toast.success('Configuração guardada');
+      setShowConfig(false);
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erro ao guardar'),
+  });
+
   const { mutate: submit, isPending } = useMutation({
     mutationFn: () => {
       const itensFinal: Record<string, boolean> = {};
-      itens.forEach(i => { itensFinal[i] = !!checks[i]; });
+      itensZona.forEach(i => { itensFinal[i.key] = !!checks[i.key]; });
       return api.post('/registos/higienizacao', {
         zona,
         dia: today(),
@@ -101,8 +182,14 @@ export default function HigienizacaoPage() {
           <Plus size={16} /> Novo Registo
         </button>
         {tab === 'list' && records.length > 0 && (
-          <button onClick={() => setShowShare(true)} className="px-3 text-gray-400 hover:text-green-600 border-l border-gray-100">
+          <button onClick={() => setShowShare(true)} className="px-3 text-gray-400 border-l border-gray-100">
             <QrCode size={18} />
+          </button>
+        )}
+        {isManager && (
+          <button onClick={openConfig} className="px-3 text-gray-400 border-l border-gray-100 relative">
+            <Settings size={18} />
+            {configMap[zona] && <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-blue-500" />}
           </button>
         )}
       </div>
@@ -172,28 +259,28 @@ export default function HigienizacaoPage() {
           {/* Checklist */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-700">Itens ({checkedCount}/{itens.length})</p>
+              <p className="text-sm font-medium text-gray-700">Itens ({checkedCount}/{itensZona.length})</p>
               <button type="button" onClick={() => {
-                const allChecked = checkedCount === itens.length;
+                const allChecked = checkedCount === itensZona.length;
                 const newChecks: Record<string, boolean> = {};
-                itens.forEach(i => { newChecks[i] = !allChecked; });
+                itensZona.forEach(i => { newChecks[i.key] = !allChecked; });
                 setChecks(newChecks);
               }} className="text-xs text-green-600 font-medium">
-                {checkedCount === itens.length ? 'Desmarcar todos' : 'Marcar todos'}
+                {checkedCount === itensZona.length ? 'Desmarcar todos' : 'Marcar todos'}
               </button>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
-              {itens.map(item => (
-                <label key={item} className="flex items-center gap-3 px-4 py-3 active:bg-gray-50 cursor-pointer">
-                  <input type="checkbox" checked={!!checks[item]} onChange={e => setChecks(c => ({ ...c, [item]: e.target.checked }))}
+              {itensZona.map(item => (
+                <label key={item.key} className="flex items-center gap-3 px-4 py-3 active:bg-gray-50 cursor-pointer">
+                  <input type="checkbox" checked={!!checks[item.key]} onChange={e => setChecks(c => ({ ...c, [item.key]: e.target.checked }))}
                     className="w-4 h-4 rounded accent-green-600" />
-                  <span className="text-sm text-gray-700">{item}</span>
+                  <span className="text-sm text-gray-700">{item.label}</span>
                 </label>
               ))}
             </div>
 
             <div className="mt-2 bg-gray-100 rounded-full h-1.5">
-              <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${itens.length ? (checkedCount / itens.length) * 100 : 0}%` }} />
+              <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${itensZona.length ? (checkedCount / itensZona.length) * 100 : 0}%` }} />
             </div>
           </div>
 
@@ -207,6 +294,94 @@ export default function HigienizacaoPage() {
             className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 active:bg-green-700 disabled:opacity-50">
             {isPending ? 'A guardar...' : 'Guardar Registo'}
           </button>
+        </div>
+      )}
+
+      {/* Bottom-sheet de configuração de itens */}
+      {showConfig && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowConfig(false)} />
+          <div className="relative bg-white rounded-t-2xl max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+              <div>
+                <p className="font-semibold text-gray-900">Gerir Itens</p>
+                <p className="text-xs text-gray-500">{ZONAS.find(z => z.key === zona)?.label}</p>
+              </div>
+              <button onClick={() => setShowConfig(false)} className="p-1 text-gray-400"><X size={20} /></button>
+            </div>
+
+            {/* Lista */}
+            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-1">
+              {configItens.map(item => (
+                <div key={item.key} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                  <span className="flex-1 text-sm text-gray-800">{item.label}</span>
+                  <select
+                    value={item.period}
+                    onChange={e => setConfigItens(prev => prev.map(i => i.key === item.key ? { ...i, period: e.target.value } : i))}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none"
+                  >
+                    <option value="D">D · Diário</option>
+                    <option value="S">S · Semanal</option>
+                    <option value="T">T · Trimestral</option>
+                  </select>
+                  <button onClick={() => setConfigItens(prev => prev.filter(i => i.key !== item.key))} className="text-gray-300 active:text-red-500 p-1">
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+              {configItens.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-8">Nenhum item. Adiciona abaixo.</p>
+              )}
+            </div>
+
+            {/* Adicionar */}
+            <div className="px-4 py-3 border-t border-gray-100 space-y-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newLabel}
+                  onChange={e => setNewLabel(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addConfigItem(); } }}
+                  placeholder="Novo item (ex: Micro-ondas)"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <select
+                  value={newPeriod}
+                  onChange={e => setNewPeriod(e.target.value as 'D' | 'S' | 'T')}
+                  className="border border-gray-200 rounded-xl px-2 text-sm bg-white focus:outline-none"
+                >
+                  <option value="D">D</option>
+                  <option value="S">S</option>
+                  <option value="T">T</option>
+                </select>
+                <button
+                  onClick={addConfigItem}
+                  disabled={!newLabel.trim()}
+                  className="bg-green-600 text-white rounded-xl px-3 disabled:opacity-40 active:bg-green-700"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+
+              {configMap[zona] && (
+                <button
+                  onClick={() => { if (window.confirm('Repor predefinições?')) setConfigItens([...DEFAULT_ITENS_ZONA[zona]]); }}
+                  className="text-xs text-gray-400 underline"
+                >
+                  Repor predefinições
+                </button>
+              )}
+
+              <button
+                onClick={() => saveConfig()}
+                disabled={isSavingConfig}
+                className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 active:bg-green-700 disabled:opacity-50"
+              >
+                {isSavingConfig ? 'A guardar...' : 'Guardar Configuração'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

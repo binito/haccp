@@ -39,7 +39,6 @@ const navEntries: NavEntry[] = [
       { href: '/registos/oleos', label: 'Óleos de Fritura', icon: Flame },
     ],
   },
-  { href: '/products', label: 'Produtos', icon: Box, roles: ['SUPER_ADMIN'] },
 ];
 
 function initials(name?: string) {

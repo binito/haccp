@@ -58,4 +58,10 @@ export class UsersController {
   deactivate(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.usersService.deactivate(id, user);
   }
+
+  @Roles(Role.SUPER_ADMIN, Role.CLIENT_ADMIN)
+  @Delete(':id/permanent')
+  delete(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.usersService.delete(id, user);
+  }
 }
