@@ -185,7 +185,7 @@ export default function UsersPage() {
                 className="w-full rounded-md border border-border bg-surface-2 text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="OPERATOR">Operacional (Equipa limpeza)</option>
                 <option value="CLIENT_ADMIN">Gestor Cliente</option>
-                {me?.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super Admin (Pataku's)</option>}
+                {me?.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super Admin</option>}
               </select>
             </div>
             <Input label="Telefone" placeholder="+351 900 000 000" {...register('phone')} />

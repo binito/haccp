@@ -131,9 +131,9 @@ function buildPrintHtml(entries: EntryRow[]) {
   footer{margin-top:24px;font-size:11px;color:#9ca3af}
   @media print{.page-break{page-break-after:always}}
 </style></head><body>
-<h1>Relatório de Checklists — Patakus</h1>
+<h1>Relatório de Checklists — HACCP</h1>
 ${sections}
-<footer>Gerado em ${now} — Patakus</footer>
+<footer>Gerado em ${now} — HACCP</footer>
 </body></html>`;
 }
 

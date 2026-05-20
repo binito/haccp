@@ -117,28 +117,6 @@ export interface ConsumableReport {
   createdAt: string;
 }
 
-export type OrderStatus = 'DRAFT' | 'PENDING' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED';
-
-export interface OrderItem {
-  id: string;
-  quantity: number;
-  unitPrice?: number;
-  productId: string;
-  product?: Product;
-}
-
-export interface Order {
-  id: string;
-  status: OrderStatus;
-  notes?: string;
-  totalAmount?: number;
-  clientId: string;
-  client?: Client;
-  items?: OrderItem[];
-  createdAt: string;
-  deliveredAt?: string;
-}
-
 // Aliases para compatibilidade com páginas geradas
 export type Anomaly = AnomalyReport;
 export type ChecklistExecution = ChecklistEntry;
@@ -148,17 +126,6 @@ export interface DashboardStats {
   totalClients: number;
   totalAreas: number;
   openAnomalies: number;
-  pendingOrders: number;
-  lowStockAlerts: number;
+  openShortageReports: number;
   checklistsThisMonth: number;
-  consumableShortagCount: number;
-}
-
-export interface OrderSuggestion {
-  productId: string;
-  productName: string;
-  unit: string;
-  mediaMensal: number;
-  stockAtual: number;
-  quantidadeSugerida: number;
 }

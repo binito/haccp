@@ -37,7 +37,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
     <div className="flex flex-col min-h-screen bg-surface-0">
       {/* Header */}
       <header className="h-14 bg-surface-1 border-b border-border px-4 flex items-center justify-between sticky top-0 z-20">
-        <span className="text-sm font-bold text-gray-100 tracking-tight">Patakus</span>
+        <span className="text-sm font-bold text-gray-100 tracking-tight">HACCP</span>
         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-500/20 text-xs font-semibold text-primary-400">
           {user?.name?.split(' ')[0]?.[0]?.toUpperCase() ?? '?'}
         </div>

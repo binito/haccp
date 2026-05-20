@@ -12,7 +12,7 @@ datasource db {
 // ─────────────────────────────────────────────
 
 enum Role {
-  SUPER_ADMIN   // Pataku's
+  SUPER_ADMIN   // Gestor da plataforma
   CLIENT_ADMIN  // Gestor do cliente (empresa)
   OPERATOR      // Equipa de limpeza
 }
@@ -45,7 +45,7 @@ model User {
 }
 
 // ─────────────────────────────────────────────
-// CLIENTES (empresas que contratam a Pataku's)
+// CLIENTES
 // ─────────────────────────────────────────────
 
 model Client {
@@ -63,7 +63,6 @@ model Client {
   users        User[]
   areas        Area[]
   consumableStocks ConsumableStock[]
-  orders       Order[]
   temperatureEquipment TemperatureEquipment[]
   entradaRecords   EntradaRecord[]
   higienizacaoRecords HigienizacaoRecord[]
@@ -297,7 +296,6 @@ model Product {
   createdAt    DateTime @default(now())
 
   stocks       ConsumableStock[]
-  orderItems   OrderItem[]
   consumptions Consumption[]
 
   @@map("products")
@@ -352,7 +350,7 @@ model ConsumableReport {
 }
 
 // ─────────────────────────────────────────────
-// CONSUMO (histórico para sugestões de encomenda)
+// CONSUMO (histórico de consumo)
 // ─────────────────────────────────────────────
 
 model Consumption {
@@ -367,51 +365,6 @@ model Consumption {
   clientId     String
 
   @@map("consumptions")
-}
-
-// ─────────────────────────────────────────────
-// ENCOMENDAS
-// ─────────────────────────────────────────────
-
-enum OrderStatus {
-  DRAFT
-  PENDING
-  CONFIRMED
-  DELIVERED
-  CANCELLED
-}
-
-model Order {
-  id           String      @id @default(uuid())
-  status       OrderStatus @default(PENDING)
-  notes        String?
-  totalAmount  Float?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  deliveredAt  DateTime?
-
-  client       Client      @relation(fields: [clientId], references: [id])
-  clientId     String
-
-  items        OrderItem[]
-
-  @@index([clientId, createdAt])
-  @@map("orders")
-}
-
-model OrderItem {
-  id           String  @id @default(uuid())
-  quantity     Float
-  unitPrice    Float?
-  notes        String?
-
-  order        Order   @relation(fields: [orderId], references: [id])
-  orderId      String
-
-  product      Product @relation(fields: [productId], references: [id])
-  productId    String
-
-  @@map("order_items")
 }
 
 // ─────────────────────────────────────────────

@@ -55,7 +55,7 @@ export default function LoginPage() {
           <div className="mb-8">
             <div className="mb-1 flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-primary-400" />
-              <span className="text-xs font-medium text-primary-400 tracking-widest uppercase">Patakus</span>
+              <span className="text-xs font-medium text-primary-400 tracking-widest uppercase">HACCP</span>
             </div>
             <h1 className="text-2xl font-bold text-white">Entrar na conta</h1>
             <p className="mt-1 text-sm text-white/50">Gestão HACCP</p>

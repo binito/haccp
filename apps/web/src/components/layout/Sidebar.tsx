@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, UserCog, MapPin, ClipboardList,
-  AlertTriangle, Package, ShoppingCart, Box, Thermometer,
+  AlertTriangle, Package, Box, Thermometer,
   ChevronRight, ChevronDown, PackageCheck, SprayCan,
   FlaskConical, Flame, BookOpen, LogOut,
 } from 'lucide-react';
@@ -29,7 +29,6 @@ const navEntries: NavEntry[] = [
   { href: '/checklists', label: 'Checklists', icon: ClipboardList },
   { href: '/anomalies', label: 'Anomalias', icon: AlertTriangle },
   { href: '/consumables', label: 'Consumíveis', icon: Package },
-  { href: '/orders', label: 'Encomendas', icon: ShoppingCart },
   {
     label: 'Registos', icon: BookOpen, prefix: '/registos',
     children: [
@@ -68,7 +67,7 @@ export function Sidebar() {
     <aside className="flex h-full w-60 flex-col border-r border-border bg-surface-1 shrink-0">
       {/* Logo */}
       <div className="flex h-14 items-center px-5 border-b border-border">
-        <Image src="/logo-patakus.png" alt="Patakus" width={110} height={38} priority />
+        <Image src="/logo.png" alt="HACCP" width={110} height={38} priority />
       </div>
 
       {/* Nav */}

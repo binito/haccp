@@ -185,7 +185,7 @@ function buildPrintHtml(records: TempRecord[], startDate: string, endDate: strin
 </div>
 ${sections}
 <footer>
-  <span>Gerado em ${now} — Sistema Patakus</span>
+  <span>Gerado em ${now} — Sistema HACCP</span>
   <span>Documento de uso interno / Apresentar às autoridades competentes quando solicitado</span>
 </footer>
 </body></html>`;

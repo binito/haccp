@@ -14,7 +14,6 @@ import { AreasModule } from './areas/areas.module';
 import { ChecklistsModule } from './checklists/checklists.module';
 import { ReportsModule } from './reports/reports.module';
 import { ConsumablesModule } from './consumables/consumables.module';
-import { OrdersModule } from './orders/orders.module';
 import { ProductsModule } from './products/products.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TemperatureModule } from './temperature/temperature.module';
@@ -61,7 +60,6 @@ import { SharesModule } from './shares/shares.module';
     ChecklistsModule,
     ReportsModule,
     ConsumablesModule,
-    OrdersModule,
     ProductsModule,
     DashboardModule,
     TemperatureModule,

@@ -66,7 +66,7 @@ table{width:100%;border-collapse:collapse}th{background:#1d4ed8;color:#fff;paddi
 td{padding:7px 8px;border-bottom:1px solid #e5e7eb}footer{margin-top:24px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
 @media print{body{margin:20px}@page{margin:15mm}}</style></head><body>
 <h1>Registo de Desinfeção de Produtos Destinados a Consumir Crus</h1>
-<p class="sub">Gerado em ${now} — Sistema Patakus</p>
+<p class="sub">Gerado em ${now} — Sistema HACCP</p>
 <table>
   <thead><tr><th>Data</th><th>Géneros Alimentícios</th><th>Desinfetante</th><th>Dose Aplicada</th><th>Qtd. Água</th><th>Tempo Atuação</th><th>Operador</th></tr></thead>
   <tbody>${rows}</tbody>

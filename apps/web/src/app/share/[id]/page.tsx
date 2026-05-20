@@ -243,7 +243,7 @@ export default function SharePage() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Image src="/logo-patakus.png" alt="Patakus" width={140} height={40} className="h-10 w-auto object-contain" />
+          <Image src="/logo.png" alt="HACCP" width={140} height={40} className="h-10 w-auto object-contain" />
           <span className="text-sm text-gray-400">Sistema HACCP</span>
         </div>
       </header>
@@ -313,7 +313,7 @@ export default function SharePage() {
 
             {/* Footer */}
             <p className="text-center text-xs text-gray-400 pb-8">
-              Documento gerado pelo sistema Patakus — Apresentar às autoridades competentes quando solicitado
+              Documento gerado pelo sistema HACCP — Apresentar às autoridades competentes quando solicitado
             </p>
           </div>
         )}

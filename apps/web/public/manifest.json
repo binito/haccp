@@ -1,7 +1,7 @@
 {
-  "name": "Patakus Operador",
-  "short_name": "Patakus",
-  "description": "App de operações de limpeza Patakus",
+  "name": "HACCP Operador",
+  "short_name": "HACCP",
+  "description": "App de operações HACCP",
   "start_url": "/app",
   "display": "standalone",
   "background_color": "#ffffff",

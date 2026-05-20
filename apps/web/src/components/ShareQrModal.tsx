@@ -58,11 +58,11 @@ export default function ShareQrModal({ open, onClose, type, label, params, clien
   function printQr() {
     const svgEl = qrRef.current?.querySelector('svg');
     const svgHtml = svgEl?.outerHTML ?? '';
-    const logoUrl = `${window.location.origin}/logo-patakus.png`;
+    const logoUrl = `${window.location.origin}/logo.png`;
     const now = new Date().toLocaleString('pt-PT');
 
     const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"/>
-<title>QR Code HACCP — Patakus</title>
+<title>QR Code HACCP — HACCP</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;background:#fff}
@@ -75,13 +75,13 @@ export default function ShareQrModal({ open, onClose, type, label, params, clien
   .footer{font-size:11px;color:#d1d5db;text-align:center}
   @media print{@page{margin:10mm}}
 </style></head><body>
-<img class="logo" src="${logoUrl}" alt="Patakus" />
+<img class="logo" src="${logoUrl}" alt="HACCP" />
 <p class="type">Controlo HACCP</p>
 <h1>${TYPE_LABELS[type]}</h1>
 <p class="period">${label}</p>
 <div class="qr">${svgHtml}</div>
 <p class="url">${shareUrl}</p>
-<p class="footer">Documento gerado em ${now} via Patakus</p>
+<p class="footer">Documento gerado em ${now} via HACCP</p>
 <script>window.onload=()=>setTimeout(()=>window.print(),200)</script>
 </body></html>`;
 

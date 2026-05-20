@@ -1,21 +1,18 @@
-# Patakus — Guia para Claude
+# HACCP — Guia para Claude
 
 ## Visão geral
 
-Monorepo (Turborepo + npm workspaces) com três apps:
+Monorepo (Turborepo + npm workspaces) com dois apps:
 
 ```
 apps/
-  api/        NestJS + Prisma + MariaDB  (porta 3001)
-  web/        Next.js 14 App Router      (porta 3000)
-  mobile/     Expo/React Native          ⚠️ NÃO USADO — ver abaixo
+  api/        NestJS + Prisma + MariaDB  (porta 3003)
+  web/        Next.js 14 App Router      (porta 3002)
 ```
 
 ## ⚠️ IMPORTANTE: a "app móvel" é a PWA em apps/web
 
-**Não existe app nativa.** `apps/mobile` existe mas não está deployado nem é usado.
-
-A interface usada no telemóvel é o **Next.js** (`apps/web`) acedido via browser em `patakus.cafemartins.pt`. O routing deteta o dispositivo e redireciona:
+**Não existe app nativa.** A interface usada no telemóvel é o **Next.js** (`apps/web`) acedido via browser. O routing deteta o dispositivo e redireciona:
 
 - **Desktop/laptop** → `/(dashboard)/` — portal de gestão completo
 - **Telemóvel** → `/app/` — interface mobile-first (PWA)
@@ -27,18 +24,15 @@ apps/web/src/app/app/
 
 ## Deploy
 
-- **Domínio:** `patakus.cafemartins.pt` (nginx com SSL wildcard)
-- **API:** `patakus.cafemartins.pt/api/` → proxy para `localhost:3001`
-- **Web:** `patakus.cafemartins.pt/` → proxy para `localhost:3000`
 - **Servidor:** Raspberry Pi em `192.168.1.176`
 
 Após alterações, reiniciar os servidores sem pedir confirmação:
 ```bash
 # API (NestJS)
-pkill -f "nest start" && cd /home/jorge/patakus && npm run dev --workspace=apps/api &
+pkill -f "nest start" && cd /home/jorge/haccp && npm run dev --workspace=apps/api &
 
 # Web (Next.js)
-pkill -f "next dev" && cd /home/jorge/patakus && npm run dev --workspace=apps/web &
+pkill -f "next dev" && cd /home/jorge/haccp && npm run dev --workspace=apps/web &
 ```
 
 ## Stack
@@ -54,7 +48,7 @@ pkill -f "next dev" && cd /home/jorge/patakus && npm run dev --workspace=apps/we
 
 ### Dashboard (desktop) — `apps/web/src/app/(dashboard)/`
 - Sidebar colapsável com grupos (`Sidebar.tsx`)
-- Páginas: dashboard, users, clients, areas, checklists, anomalies, consumables, orders, products, temperature, registos/*
+- Páginas: dashboard, users, clients, areas, checklists, anomalies, consumables, products, temperature, registos/*
 
 ### Mobile PWA — `apps/web/src/app/app/`
 - Layout: header fixo + barra de navegação inferior
@@ -79,7 +73,7 @@ API endpoints: `GET/POST /registos/{entradas|higienizacao|desinfecao|oleos}`
 
 ## Base de dados (Prisma)
 
-Modelos principais: `User`, `Client`, `Area`, `ChecklistTemplate`, `ChecklistTask`, `ChecklistEntry`, `ChecklistTaskResult`, `AnomalyReport`, `AnomalyPhoto`, `ConsumableStock`, `ConsumableReport`, `Consumption`, `TemperatureEquipment`, `TemperatureRecord`, `Order`, `OrderItem`, `Product`
+Modelos principais: `User`, `Client`, `Area`, `ChecklistTemplate`, `ChecklistTask`, `ChecklistEntry`, `ChecklistTaskResult`, `AnomalyReport`, `AnomalyPhoto`, `ConsumableStock`, `ConsumableReport`, `Consumption`, `TemperatureEquipment`, `TemperatureRecord`, `Product`
 
 Modelos HACCP: `EntradaRecord`, `HigienizacaoRecord`, `DesinfecaoRecord`, `OleoFrituraRecord`
 
@@ -88,5 +82,5 @@ Migrations em: `apps/api/prisma/migrations/`
 ## Roles
 
 - `SUPER_ADMIN` — acesso total, vê todos os clientes
-- `ADMIN` — acesso total ao seu cliente
+- `CLIENT_ADMIN` — acesso total ao seu cliente
 - `OPERATOR` — acesso operacional (registos, checklists, anomalias)

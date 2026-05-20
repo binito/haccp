@@ -8,7 +8,7 @@ import helmet from 'helmet';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
-const KNOWN_WEAK_SECRETS = ['change_this_secret', 'patakus_jwt_secret_change_in_production', 'secret'];
+const KNOWN_WEAK_SECRETS = ['change_this_secret', 'haccp_jwt_secret_change_in_production', 'secret'];
 
 async function bootstrap() {
   const jwtSecret = process.env.JWT_SECRET;
@@ -39,6 +39,6 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3003;
   await app.listen(port);
-  console.log(`API Pataku's a correr em http://localhost:${port}`);
+  console.log(`API HACCP a correr em http://localhost:${port}`);
 }
 bootstrap();

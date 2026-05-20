@@ -207,7 +207,7 @@ th{background:#1d4ed8;color:#fff;font-size:9px}td:first-child{font-weight:600;ba
 .ok{color:#16a34a;font-weight:700}.nok{color:#9ca3af}
 small{font-size:8px}@media print{@page{margin:10mm;size:landscape}}</style></head><body>
 <h1>Registo de Higienização — ${zonaLabel}</h1>
-<p class="sub">Mês: ${format(new Date(startDate), 'MMMM yyyy', { locale: pt })} — Gerado em ${now} — Sistema Patakus</p>
+<p class="sub">Mês: ${format(new Date(startDate), 'MMMM yyyy', { locale: pt })} — Gerado em ${now} — Sistema HACCP</p>
 <table><thead><tr><th>Dia</th>${headers}<th>Operador</th></tr></thead><tbody>${rows}</tbody></table>
 </body></html>`;
     const w = window.open('', '_blank');

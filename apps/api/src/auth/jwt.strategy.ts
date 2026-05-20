@@ -10,7 +10,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(config: ConfigService, private authService: AuthService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: Request) => req?.cookies?.['patakus_token'] ?? null,
+        (req: Request) => req?.cookies?.['haccp_token'] ?? null,
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,

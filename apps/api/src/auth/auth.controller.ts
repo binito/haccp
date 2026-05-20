@@ -28,7 +28,7 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { access_token, user } = await this.authService.login(dto.email, dto.password);
 
-    res.cookie('patakus_token', access_token, {
+    res.cookie('haccp_token', access_token, {
       httpOnly: true,
       secure: IS_PRODUCTION,
       sameSite: 'lax',
@@ -42,7 +42,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('patakus_token', { path: '/' });
+    res.clearCookie('haccp_token', { path: '/' });
     return { ok: true };
   }
 

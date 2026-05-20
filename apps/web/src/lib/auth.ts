@@ -1,6 +1,6 @@
 import { User } from '@/types';
 
-const USER_KEY = 'patakus_user';
+const USER_KEY = 'haccp_user';
 
 export function getUser(): User | null {
   if (typeof window === 'undefined') return null;

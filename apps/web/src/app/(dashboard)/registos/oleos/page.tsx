@@ -74,7 +74,7 @@ table{width:100%;border-collapse:collapse}th{background:#1d4ed8;color:#fff;paddi
 td{padding:7px 8px;border-bottom:1px solid #e5e7eb}footer{margin-top:24px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
 @media print{body{margin:20px}@page{margin:15mm}}</style></head><body>
 <h1>Controlo do Óleo da Fritura</h1>
-<p class="sub">Gerado em ${now} — Sistema Patakus</p>
+<p class="sub">Gerado em ${now} — Sistema HACCP</p>
 <table>
   <thead><tr><th>Data</th><th>Fritadeira</th><th>Temperatura</th><th>Resultado (1-5)</th><th>% Compostos Polares</th><th>Classificação</th><th>Ações</th><th>Responsável</th></tr></thead>
   <tbody>${rows}</tbody>

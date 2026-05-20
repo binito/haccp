@@ -100,7 +100,7 @@ function buildPrintHtml(records: EntradaRecord[]) {
   @media print{body{margin:20px}@page{margin:15mm}}
 </style></head><body>
 <h1>Registo de Controlo dos Produtos à Receção</h1>
-<p class="sub">Rastreabilidade — Gerado em ${now} — Sistema Patakus</p>
+<p class="sub">Rastreabilidade — Gerado em ${now} — Sistema HACCP</p>
 <div class="summary">
   <div class="s-item"><div class="s-num">${records.length}</div><div>Entradas</div></div>
   <div class="s-item"><div class="s-num ${nc.length > 0 ? 's-nok' : ''}">${nc.length}</div><div>Não conformidades</div></div>

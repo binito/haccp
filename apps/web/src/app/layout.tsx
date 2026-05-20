@@ -6,13 +6,13 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Patakus',
-  description: 'Portal de administração e app de operações Patakus',
+  title: 'HACCP',
+  description: 'Portal de gestão e app de operações HACCP',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Patakus',
+    title: 'HACCP',
   },
   icons: {
     apple: '/icons/icon-192.png',

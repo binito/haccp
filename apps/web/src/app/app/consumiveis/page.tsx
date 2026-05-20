@@ -52,7 +52,7 @@ export default function ConsumiveisPage() {
         notes: notes[stock.id] || undefined,
       }),
     onSuccess: (_, { stock }) => {
-      toast.success('Falta reportada! A Patakus foi notificada.');
+      toast.success('Falta reportada com sucesso!');
       setQuantities(prev => { const n = { ...prev }; delete n[stock.id]; return n; });
       setNotes(prev => { const n = { ...prev }; delete n[stock.id]; return n; });
       setExpanded(null);

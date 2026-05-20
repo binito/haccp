@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, MapPin, ShoppingCart, ClipboardList, Package } from 'lucide-react';
+import { AlertTriangle, MapPin, ClipboardList, Package } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import api from '@/lib/api';
@@ -14,7 +14,7 @@ import { clsx } from 'clsx';
 
 interface DashboardStats {
   totalClients: number; totalAreas: number; openAnomalies: number;
-  pendingOrders: number; openShortageReports: number; checklistsThisMonth: number;
+  openShortageReports: number; checklistsThisMonth: number;
 }
 
 interface ShortageReport {
@@ -73,13 +73,13 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       {statsLoading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-          {Array.from({ length: isSuperAdmin ? 6 : 5 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: isSuperAdmin ? 5 : 4 }).map((_, i) => (
             <Card key={i}><div className="h-14 animate-pulse rounded-lg bg-surface-3" /></Card>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
           {isSuperAdmin && (
             <StatCard label="Clientes" value={stats?.totalClients ?? 0}
               icon={MapPin} accentClass="bg-primary-500" iconColorClass="text-primary-500" />
@@ -88,8 +88,6 @@ export default function DashboardPage() {
             icon={MapPin} accentClass="bg-blue-500" iconColorClass="text-blue-500" />
           <StatCard label="Anomalias" value={stats?.openAnomalies ?? 0}
             icon={AlertTriangle} accentClass="bg-red-500" iconColorClass="text-red-500" href="/anomalies" />
-          <StatCard label="Pedidos" value={stats?.pendingOrders ?? 0}
-            icon={ShoppingCart} accentClass="bg-orange-500" iconColorClass="text-orange-500" href="/orders" />
           <StatCard label="Faltas" value={stats?.openShortageReports ?? 0}
             icon={Package}
             accentClass={stats?.openShortageReports ? 'bg-red-500' : 'bg-green-500'}
@@ -100,7 +98,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Faltas */}
         <Card padding="none">
           <CardHeader className="px-5 pt-5 pb-0 mb-0">
@@ -181,34 +179,6 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Pedidos */}
-        <Card padding="none">
-          <CardHeader className="px-5 pt-5 pb-0 mb-0">
-            <CardTitle>Pedidos pendentes</CardTitle>
-            <Badge status="PENDING" />
-          </CardHeader>
-          <div className="mt-3">
-            {!stats ? (
-              <div className="space-y-2 px-5 pb-5">
-                {[1, 2].map(i => <div key={i} className="h-10 animate-pulse rounded-lg bg-surface-3" />)}
-              </div>
-            ) : stats.pendingOrders === 0 ? (
-              <p className="px-5 pb-5 pt-3 text-sm text-gray-400">Nenhum pedido pendente</p>
-            ) : (
-              <div className="px-5 py-6 text-center">
-                <p className="text-4xl font-bold text-orange-400 tabular-nums">{stats.pendingOrders}</p>
-                <p className="mt-1 text-sm text-gray-400">
-                  pedido{stats.pendingOrders !== 1 ? 's' : ''} a aguardar aprovação
-                </p>
-              </div>
-            )}
-            <div className="border-t border-border px-5 py-3">
-              <Link href="/orders" className="text-xs font-medium text-primary-400 hover:text-primary-300 transition-colors">
-                Ver encomendas →
-              </Link>
-            </div>
-          </div>
-        </Card>
       </div>
     </div>
   );

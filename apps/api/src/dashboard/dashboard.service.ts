@@ -15,7 +15,6 @@ export class DashboardService {
       totalClients,
       totalAreas,
       openAnomalies,
-      pendingOrders,
       openShortageReports,
       checklistsThisMonth,
     ] = await Promise.all([
@@ -27,9 +26,6 @@ export class DashboardService {
       }),
       this.prisma.anomalyReport.count({
         where: { status: 'OPEN', ...(clientId ? { area: { clientId } } : {}) },
-      }),
-      this.prisma.order.count({
-        where: { status: 'PENDING', ...(clientId ? { clientId } : {}) },
       }),
       this.prisma.consumableReport.count({
         where: { status: 'OPEN', ...(clientId ? { stock: { clientId } } : {}) },
@@ -46,7 +42,6 @@ export class DashboardService {
       totalClients,
       totalAreas,
       openAnomalies,
-      pendingOrders,
       openShortageReports,
       checklistsThisMonth,
     };

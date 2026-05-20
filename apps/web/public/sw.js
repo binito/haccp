@@ -1,4 +1,4 @@
-const CACHE_NAME = 'patakus-v1';
+const CACHE_NAME = 'haccp-v1';
 const urlsToCache = ['/', '/app', '/login', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
